@@ -44,9 +44,9 @@ class ListingController extends Controller
 		]);
 		$list = Cache::get('list.' . $listId) ?? [];
 		$list[$data['type']] = $list[$data['type']] ?? [];
-		$list[$data['type']][] = [ 'text' => $data['text'], 'author' => auth()->user()->name ];
+		$list[$data['type']][] = [ 'id' => uniqid(), 'text' => $data['text'], 'author' => auth()->user()->name ];
 
-		Cache::put('list.' . $listId, $list, 60);
+		Cache::put('list.' . $listId, $list, 6000);
 
 		broadcast(new ListingUpdated($listId, $list));
 

@@ -20,7 +20,24 @@
 					<span v-if="typists.length > 1">{{ typists[0].name }} (+{{typists.length - 1}} other{{ typists.length > 2 ? 's' : ''}} are typing...</span>
 					<span v-else-if="typists.length === 1">{{ typists[0].name }} is typing...</span>
 				</form>
-				{{ $page.props.list }}
+				<table>
+					<thead>
+					<tr>
+						<td>Pro</td>
+						<td>Con</td>
+					</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>
+								<div v-for="item in (list['Pro'] || [])" :key="`list-${item.id}`">{{ item.text }} - {{ item.author }}</div>
+							</td>
+							<td>
+								<div v-for="item in (list['Con'] || [])" :key="`list-${item.id}`">{{ item.text }} - {{ item.author }}</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
 			</div>
 		</div>
 	</app-layout>
@@ -50,7 +67,7 @@
 				},
 				isTyping: false,
 				usersTyping: {},
-				list: {},
+				list: this.$page.props.list || {},
 				listId: this.$page.props.listId,
 				isTypingTimeout: null,
 				users: {},
@@ -71,8 +88,7 @@
 
 		watch: {
 			'form.text': function(newValue) {
-				this.setIsTyping(true);
-
+				this.setIsTyping(newValue && newValue.length);
 			},
 		},
 
@@ -96,8 +112,9 @@
 				.error((error) => {
 					console.error('error?', error);
 				})
-				.listen('list.updated', (e) => {
+				.listen('.list.updated', (e) => {
 					console.log('ListUpdated!', e);
+					this.list = e.list;
 				})
 				.listenForWhisper('typing', (e) => {
 					if (typeof this.usersTyping[e.name] !== 'undefined') {
