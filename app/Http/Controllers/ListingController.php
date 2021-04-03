@@ -61,6 +61,10 @@ class ListingController extends Controller
 	 */
 	public function show(Request $request, $listId)
 	{
+		if (!auth()->check()) {
+			// Make anonymous user
+
+		}
 		$list = Cache::get('list.' . $listId) ?? [];
 
 		return Jetstream::inertia()->render($request, 'Lists/Show', [

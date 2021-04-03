@@ -2,6 +2,7 @@
 
 namespace App\Broadcasting;
 
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -33,7 +34,7 @@ class ListingChannel implements ShouldBroadcast
     	$this->listId = $listId;
         return [
         	'listId' => $this->listId,
-			'user' => auth()->check() ? auth()->user() : [ 'name' => 'Anonymous Cow'],
+			'user' => auth()->check() ? new UserResource(auth()->user()) : [ 'name' => 'Anonymous Cow'],
 			'list' => Cache::get('list.' . $listId) ?? [],
 		];
     }

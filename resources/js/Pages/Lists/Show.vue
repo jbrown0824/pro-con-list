@@ -7,7 +7,7 @@
 		</template>
 
 		<div>
-			<div class="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8">
+			<div class="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8" id="container">
 				Users Online: {{ usersOnline.map(user => user.name).join(', ') }}
 				<form action @submit.prevent="onSubmit">
 					<select v-model="form.type">
@@ -38,14 +38,38 @@
 						</tr>
 					</tbody>
 				</table>
+				
+				<div id="pointers">
+					<div v-for="state in pointers" :key="`user-pointer-${ state.name }`" class="pointer" :style="`left: ${state.mousePosition.x}px; top:${state.mousePosition.y}px; color:${state.color};`">{{ state.name }}</div>
+				</div>
 			</div>
 		</div>
 	</app-layout>
 </template>
 
+<style>
+	#pointers {
+		position: relative;
+	}
+
+	#pointers .pointer {
+		position: fixed;
+		width: 15px;
+		height: 22px;
+		background: url("https://uploads.codesandbox.io/uploads/user/88acfe5a-77fc-498c-98ee-d1b0b303f6a8/tC4n-pointer.png")
+		no-repeat -4px 0;
+	}
+
+	.focused {
+		border: 2px solid red;
+	}
+</style>
+
 <script>
     import AppLayout from '@/Layouts/AppLayout'
 	import JetSectionBorder from '@/Jetstream/SectionBorder'
+	import generateQuerySelector from '../../utils/generateQuerySelector';
+	import { trackFocus } from '../../utils/track-focus';
 
 	let channel;
 
@@ -66,7 +90,8 @@
 					text: '',
 				},
 				isTyping: false,
-				usersTyping: {},
+				// Record<string|number, UserState>
+				userState: {},
 				list: this.$page.props.list || {},
 				listId: this.$page.props.listId,
 				isTypingTimeout: null,
@@ -77,18 +102,43 @@
 		computed: {
 
 			typists() {
-				return Object.values(this.usersTyping).filter(({ isTyping }) => !!isTyping);
+				return Object.values(this.userState).filter(({ isTyping }) => !!isTyping);
 			},
 
 			usersOnline() {
 				return Object.values(this.users);
-			}
+			},
+
+			pointers() {
+				return Object.values(this.userState).filter(state => state.mousePosition && state.mousePosition.x);
+			},
+
+			focusedElements() {
+				return Object.values(this.userState).filter(state => state.focus);
+			},
 
 		},
 
 		watch: {
 			'form.text': function(newValue) {
 				this.setIsTyping(newValue && newValue.length);
+			},
+
+			focusedElements: function(focusedElements, prevFocusedElements) {
+				// const unfocusedElements = prevFocusedElements.filter(({focus} = {}) => focusedElements.includes(focus));
+				document.querySelectorAll('.focused')
+					.forEach(element => {
+						element.classList.remove('focused')
+						element.style.borderColor = 'auto';
+					});
+
+				focusedElements.forEach(state => {
+					const e = document.querySelector(state.focus);
+					if (e) {
+						e.classList.add('focused');
+						e.style.borderColor = state.color;
+					}
+				});
 			},
 		},
 
@@ -117,23 +167,76 @@
 					this.list = e.list;
 				})
 				.listenForWhisper('typing', (e) => {
-					if (typeof this.usersTyping[e.name] !== 'undefined') {
-						clearTimeout(this.usersTyping[e.name].timeout);
-					}
 
-					this.usersTyping[e.name] = {
-						isTyping: e.isTyping,
+					this.userState[e.name] = this.userState[e.name] || {
 						name: e.name,
-						timeout: setTimeout(() => {
-							this.usersTyping[e.name].isTyping = false;
-						}, 2500)
+						color: e.color,
+						isTyping: false,
+						timeouts: {},
 					};
+
+					clearTimeout(this.userState[e.name].timeouts.typing);
+
+					this.userState[e.name].timeouts = this.userState[e.name].timeouts || {};
+					this.userState[e.name].isTyping = e.isTyping;
+					this.userState[e.name].timeouts.typing = setTimeout(() => {
+						this.userState[e.name].isTyping = false
+					}, 2500);
+				})
+				.listenForWhisper('mousemove', (e) => {
+					this.userState[e.name] = this.userState[e.name] || {
+						name: e.name,
+						color: e.color,
+						isTyping: false,
+						timeouts: {},
+					};
+
+					clearTimeout(this.userState[e.name].timeouts.mousemove);
+
+					const position = { ...e.position };
+					const bounding = document.querySelector('#container').getBoundingClientRect();
+					position.x -= (position.containerXOffset - bounding.left);
+
+					this.userState[e.name].timeouts = this.userState[e.name].timeouts || {};
+					this.userState[e.name].mousePosition = position;
+					this.userState[e.name].timeouts.mousemove = setTimeout(() => {
+						delete this.userState[e.name].mousePosition;
+					}, 25000);
+				})
+				.listenForWhisper('active-element', (e) => {
+					console.log('got active element change');
+					this.userState[e.name] = this.userState[e.name] || {
+						name: e.name,
+						color: e.color,
+						isTyping: false,
+						timeouts: {},
+					};
+
+					clearTimeout(this.userState[e.name].timeouts.activeElement);
+
+					this.userState[e.name].timeouts = this.userState[e.name].timeouts || {};
+					this.userState[e.name].focus = e.element;
+					this.userState[e.name].timeouts.activeElement = setTimeout(() => {
+						delete this.userState[e.name].focus;
+					}, 25000);
 				});
 
 			window.addEventListener('beforeunload', () => {
 				console.log('before unload called!');
 				Echo.leave(`list.${this.$page.props.listId}`);
 			});
+
+			// Debounce
+			const mousemove = _.throttle((e) => this.handleMouseMove(e), 100);
+			window.addEventListener('mousemove', mousemove);
+
+			// window.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+
+			trackFocus(
+				(e) => this.handleFocusChange(e, 'FOCUS'),
+				(e) => this.handleFocusChange(e, 'BLUR'),
+				document
+			);
 		},
 
 		beforeUnmount() {
@@ -157,10 +260,10 @@
 					this.resetTypingTimeout();
 				}
 				this.isTyping = isTyping;
-				console.log('whispering typing', isTyping ? 'yes' : 'no');
 				channel
 					.whisper('typing', {
 						isTyping,
+						color: this.$page.props.user.color,
 						name: this.$page.props.user ? this.$page.props.user.name : 'Anonymous Cucumber',
 					});
 			},
@@ -168,8 +271,28 @@
 			resetTypingTimeout() {
 				clearTimeout(this.isTypingTimeout);
 				this.isTypingTimeout = setTimeout(() => this.setIsTyping(false), 2500);
-			}
+			},
 
+			handleMouseMove(e) {
+				const bounding = document.querySelector('#container').getBoundingClientRect();
+				channel.whisper('mousemove', {
+					name: this.$page.props.user.name,
+					color: this.$page.props.user.color,
+					position: {
+						x: e.pageX,
+						y: e.pageY,
+						containerXOffset: bounding.left,
+					},
+				});
+			},
+
+			handleFocusChange(e, change) {
+				channel.whisper('active-element', {
+					name: this.$page.props.user.name,
+					color: this.$page.props.user.color,
+					element: change === 'FOCUS' ? generateQuerySelector(e.target) : null,
+				});
+			}
 		},
 
 		components: {
