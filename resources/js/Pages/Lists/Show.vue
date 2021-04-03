@@ -38,7 +38,7 @@
 						</tr>
 					</tbody>
 				</table>
-				
+
 				<div id="pointers">
 					<div v-for="state in pointers" :key="`user-pointer-${ state.name }`" class="pointer" :style="`left: ${state.mousePosition.x}px; top:${state.mousePosition.y}px; color:${state.color};`">{{ state.name }}</div>
 				</div>
