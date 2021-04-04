@@ -102,7 +102,7 @@
 		computed: {
 
 			typists() {
-				return Object.values(this.userState).filter(({ isTyping }) => !!isTyping);
+				return Object.values(this.userState).filter(({ user, isTyping }) => !!this.users[user.id] && !!isTyping);
 			},
 
 			usersOnline() {
@@ -110,11 +110,11 @@
 			},
 
 			pointers() {
-				return Object.values(this.userState).filter(state => state.mousePosition && state.mousePosition.x);
+				return Object.values(this.userState).filter(state => !!this.users[state.user.id] && state.mousePosition && state.mousePosition.x);
 			},
 
 			focusedElements() {
-				return Object.values(this.userState).filter(state => state.focus);
+				return Object.values(this.userState).filter(state => !!this.users[state.user.id] && state.focus);
 			},
 
 		},
@@ -167,7 +167,18 @@
 					console.log('ListUpdated!', e);
 					this.list = e.list;
 				})
-				.listenForWhisper('typing', (e) => {
+
+				/**
+				 * TODO: Rather than run timeouts for all of these (which is cpu intensive and may not fire, leading to bad state),
+				 * just store a date on each trackable event and filter out stale events via the computed properties.
+				 * Have a single loop periodically forcefully update computed props.
+				 *
+				 * TODO: All trackable events should be interfaced to simplify all of this code
+				 *
+				 * TODO: Move all tracking code to a class, perhaps implement vue 3's reactivity code
+				 */
+
+					.listenForWhisper('typing', (e) => {
 
 					this.userState[e.user.id] = this.userState[e.user.id] || {
 						user: e.user,
@@ -201,6 +212,7 @@
 					this.userState[e.user.id].timeouts.mousemove = setTimeout(() => {
 						this.userState[e.user.id] = {
 							...(this.userState[e.user.id] || {}),
+							mousePosition: null,
 
 						};
 					}, 25000);
