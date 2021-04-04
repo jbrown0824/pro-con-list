@@ -143,6 +143,20 @@
 		},
 
 		mounted() {
+			const ensureUserState = (user) => {
+				this.userState[user.id] = this.userState[user.id] || {
+					user,
+					isTyping: false,
+					mousePosition: null,
+					timeouts: {},
+				};
+			}
+
+			const trackUserStateChange = (user, trackingId, onCleanup, cleanupTimeout) => {
+				clearTimeout(this.userState[user.id].timeouts[trackingId]);
+				this.userState[user.id].timeouts[trackingId] = setTimeout(onCleanup, cleanupTimeout);
+			}
+
 			channel = Echo.join(`list.${this.$page.props.listId}`);
 			channel
 				.here((users) => {
@@ -178,59 +192,32 @@
 				 * TODO: Move all tracking code to a class, perhaps implement vue 3's reactivity code
 				 */
 
-					.listenForWhisper('typing', (e) => {
+				.listenForWhisper('typing', (e) => {
+					ensureUserState(e.user);
 
-					this.userState[e.user.id] = this.userState[e.user.id] || {
-						user: e.user,
-						isTyping: false,
-						timeouts: {},
-					};
-
-					clearTimeout(this.userState[e.user.id].timeouts.typing);
-
-					this.userState[e.user.id].timeouts = this.userState[e.user.id].timeouts || {};
 					this.userState[e.user.id].isTyping = e.isTyping;
-					this.userState[e.user.id].timeouts.typing = setTimeout(() => {
-						this.userState[e.user.id].isTyping = false
+					trackUserStateChange(e.user, 'typing', () => {
+						this.userState[e.user.id].isTyping ??= false;
 					}, 2500);
 				})
 				.listenForWhisper('mousemove', (e) => {
-					this.userState[e.user.id] = this.userState[e.user.id] || {
-						user: e.user,
-						isTyping: false,
-						timeouts: {},
-					};
-
-					clearTimeout(this.userState[e.user.id].timeouts.mousemove);
+					ensureUserState(e.user);
 
 					const position = { ...e.position };
 					const bounding = document.querySelector('#container').getBoundingClientRect();
 					position.x -= (position.containerXOffset - bounding.left);
 
-					this.userState[e.user.id].timeouts = this.userState[e.user.id].timeouts || {};
 					this.userState[e.user.id].mousePosition = position;
-					this.userState[e.user.id].timeouts.mousemove = setTimeout(() => {
-						this.userState[e.user.id] = {
-							...(this.userState[e.user.id] || {}),
-							mousePosition: null,
-
-						};
+					trackUserStateChange(e.user, 'mousemove', () => {
+						this.userState[e.user.id].mousePosition ??= null;
 					}, 25000);
 				})
 				.listenForWhisper('active-element', (e) => {
-					console.log('got active element change');
-					this.userState[e.user.id] = this.userState[e.user.id] || {
-						user: e.user,
-						isTyping: false,
-						timeouts: {},
-					};
+					ensureUserState(e.user);
 
-					clearTimeout(this.userState[e.user.id].timeouts.activeElement);
-
-					this.userState[e.user.id].timeouts = this.userState[e.user.id].timeouts || {};
 					this.userState[e.user.id].focus = e.element;
-					this.userState[e.user.id].timeouts.activeElement = setTimeout(() => {
-						delete this.userState[e.user.id].focus;
+					trackUserStateChange(e.user, 'activeElement',() => {
+						this.userState[e.user.id].focus ??= null;
 					}, 25000);
 				});
 
