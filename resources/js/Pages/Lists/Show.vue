@@ -66,6 +66,7 @@
 </style>
 
 <script>
+	import { reactive } from 'vue';
     import AppLayout from '@/Layouts/AppLayout'
 	import JetSectionBorder from '@/Jetstream/SectionBorder'
 	import generateQuerySelector from '../../utils/generateQuerySelector';
@@ -144,12 +145,14 @@
 
 		mounted() {
 			const ensureUserState = (user) => {
-				this.userState[user.id] = this.userState[user.id] || {
-					user,
-					isTyping: false,
-					mousePosition: null,
-					timeouts: {},
-				};
+				if (!this.userState[user.id]) {
+					this.userState[user.id] = reactive({
+						user,
+						isTyping: false,
+						mousePosition: null,
+						timeouts: {},
+					});
+				}
 			}
 
 			const trackUserStateChange = (user, trackingId, onCleanup, cleanupTimeout) => {
@@ -186,6 +189,7 @@
 				 * TODO: Rather than run timeouts for all of these (which is cpu intensive and may not fire, leading to bad state),
 				 * just store a date on each trackable event and filter out stale events via the computed properties.
 				 * Have a single loop periodically forcefully update computed props.
+				 * Also, once we do date based we can mark pointers as "idle" (semi-transparent) for a time rather than just hiding
 				 *
 				 * TODO: All trackable events should be interfaced to simplify all of this code
 				 *
@@ -197,7 +201,9 @@
 
 					this.userState[e.user.id].isTyping = e.isTyping;
 					trackUserStateChange(e.user, 'typing', () => {
-						this.userState[e.user.id].isTyping ??= false;
+						if (this.userState[e.user.id]) {
+							this.userState[e.user.id].isTyping = false;
+						}
 					}, 2500);
 				})
 				.listenForWhisper('mousemove', (e) => {
@@ -209,7 +215,9 @@
 
 					this.userState[e.user.id].mousePosition = position;
 					trackUserStateChange(e.user, 'mousemove', () => {
-						this.userState[e.user.id].mousePosition ??= null;
+						if (this.userState[e.user.id]) {
+							this.userState[e.user.id].mousePosition = null;
+						}
 					}, 25000);
 				})
 				.listenForWhisper('active-element', (e) => {
@@ -217,12 +225,13 @@
 
 					this.userState[e.user.id].focus = e.element;
 					trackUserStateChange(e.user, 'activeElement',() => {
-						this.userState[e.user.id].focus ??= null;
+						if (this.userState[e.user.id]) {
+							this.userState[ e.user.id ].focus = null;
+						}
 					}, 25000);
 				});
 
 			window.addEventListener('beforeunload', () => {
-				console.log('before unload called!');
 				Echo.leave(`list.${this.$page.props.listId}`);
 			});
 
@@ -240,16 +249,13 @@
 		},
 
 		beforeUnmount() {
-			console.log('beforeUnmount!', this.listId);
 			Echo.leave(`list.${this.listId}`);
 		},
 
 		methods: {
 
 			async onSubmit() {
-				console.log('submitted', this.form);
-				const { data } = await axios.post(`/lists/${ this.$page.props.listId}`, this.form);
-				console.log('data', data);
+				await axios.post(`/lists/${ this.$page.props.listId}`, this.form);
 				this.form.text = '';
 				this.setIsTyping(false);
 				clearTimeout(this.isTypingTimeout);
