@@ -8,7 +8,7 @@
 
 		<div>
 			<div class="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8" id="container">
-				Users Online: {{ usersOnline.map(user => user.name).join(', ') }}
+				Users Online: <span v-for="(user, index) in usersOnline" :key="`online-user-${user.id}`"><span :style="`color: ${user.color};`">{{ user.name }}</span>{{ user.id === $page.props.user.id ? ' (This is you)' : ''}}{{ index < (usersOnline.length - 1) ? ',' : ''}}&nbsp;</span>
 				<form action @submit.prevent="onSubmit">
 					<select v-model="form.type">
 						<option value="Pro">Pro</option>
@@ -17,8 +17,8 @@
 					<input v-model="form.text" :placeholder="`Enter your ${form.type}`">
 					<input type="submit" value="Add">
 					<br><br>
-					<span v-if="typists.length > 1">{{ typists[0].name }} (+{{typists.length - 1}} other{{ typists.length > 2 ? 's' : ''}} are typing...</span>
-					<span v-else-if="typists.length === 1">{{ typists[0].name }} is typing...</span>
+					<span v-if="typists.length > 1">{{ typists[0].user.name }} (+{{typists.length - 1}} other{{ typists.length > 2 ? 's' : ''}} are typing...</span>
+					<span v-else-if="typists.length === 1">{{ typists[0].user.name }} is typing...</span>
 				</form>
 				<table>
 					<thead>
@@ -40,7 +40,7 @@
 				</table>
 
 				<div id="pointers">
-					<div v-for="state in pointers" :key="`user-pointer-${ state.name }`" class="pointer" :style="`left: ${state.mousePosition.x}px; top:${state.mousePosition.y}px; color:${state.color};`">{{ state.name }}</div>
+					<div v-for="state in pointers" :key="`user-pointer-${ state.id }`" class="pointer" :style="`left: ${state.mousePosition.x}px; top:${state.mousePosition.y}px; color:${state.user.color};`">{{ state.user.name }}</div>
 				</div>
 			</div>
 		</div>
@@ -136,7 +136,7 @@
 					const e = document.querySelector(state.focus);
 					if (e) {
 						e.classList.add('focused');
-						e.style.borderColor = state.color;
+						e.style.borderColor = state.user.color;
 					}
 				});
 			},
@@ -158,6 +158,7 @@
 				.leaving(({ user }) => {
 					console.log('leaving', user);
 					delete this.users[user.id];
+					delete this.userState[user.id];
 				})
 				.error((error) => {
 					console.error('error?', error);
@@ -168,56 +169,56 @@
 				})
 				.listenForWhisper('typing', (e) => {
 
-					this.userState[e.name] = this.userState[e.name] || {
-						name: e.name,
-						color: e.color,
+					this.userState[e.user.id] = this.userState[e.user.id] || {
+						user: e.user,
 						isTyping: false,
 						timeouts: {},
 					};
 
-					clearTimeout(this.userState[e.name].timeouts.typing);
+					clearTimeout(this.userState[e.user.id].timeouts.typing);
 
-					this.userState[e.name].timeouts = this.userState[e.name].timeouts || {};
-					this.userState[e.name].isTyping = e.isTyping;
-					this.userState[e.name].timeouts.typing = setTimeout(() => {
-						this.userState[e.name].isTyping = false
+					this.userState[e.user.id].timeouts = this.userState[e.user.id].timeouts || {};
+					this.userState[e.user.id].isTyping = e.isTyping;
+					this.userState[e.user.id].timeouts.typing = setTimeout(() => {
+						this.userState[e.user.id].isTyping = false
 					}, 2500);
 				})
 				.listenForWhisper('mousemove', (e) => {
-					this.userState[e.name] = this.userState[e.name] || {
-						name: e.name,
-						color: e.color,
+					this.userState[e.user.id] = this.userState[e.user.id] || {
+						user: e.user,
 						isTyping: false,
 						timeouts: {},
 					};
 
-					clearTimeout(this.userState[e.name].timeouts.mousemove);
+					clearTimeout(this.userState[e.user.id].timeouts.mousemove);
 
 					const position = { ...e.position };
 					const bounding = document.querySelector('#container').getBoundingClientRect();
 					position.x -= (position.containerXOffset - bounding.left);
 
-					this.userState[e.name].timeouts = this.userState[e.name].timeouts || {};
-					this.userState[e.name].mousePosition = position;
-					this.userState[e.name].timeouts.mousemove = setTimeout(() => {
-						delete this.userState[e.name].mousePosition;
+					this.userState[e.user.id].timeouts = this.userState[e.user.id].timeouts || {};
+					this.userState[e.user.id].mousePosition = position;
+					this.userState[e.user.id].timeouts.mousemove = setTimeout(() => {
+						this.userState[e.user.id] = {
+							...(this.userState[e.user.id] || {}),
+
+						};
 					}, 25000);
 				})
 				.listenForWhisper('active-element', (e) => {
 					console.log('got active element change');
-					this.userState[e.name] = this.userState[e.name] || {
-						name: e.name,
-						color: e.color,
+					this.userState[e.user.id] = this.userState[e.user.id] || {
+						user: e.user,
 						isTyping: false,
 						timeouts: {},
 					};
 
-					clearTimeout(this.userState[e.name].timeouts.activeElement);
+					clearTimeout(this.userState[e.user.id].timeouts.activeElement);
 
-					this.userState[e.name].timeouts = this.userState[e.name].timeouts || {};
-					this.userState[e.name].focus = e.element;
-					this.userState[e.name].timeouts.activeElement = setTimeout(() => {
-						delete this.userState[e.name].focus;
+					this.userState[e.user.id].timeouts = this.userState[e.user.id].timeouts || {};
+					this.userState[e.user.id].focus = e.element;
+					this.userState[e.user.id].timeouts.activeElement = setTimeout(() => {
+						delete this.userState[e.user.id].focus;
 					}, 25000);
 				});
 
@@ -260,12 +261,9 @@
 					this.resetTypingTimeout();
 				}
 				this.isTyping = isTyping;
-				channel
-					.whisper('typing', {
-						isTyping,
-						color: this.$page.props.user.color,
-						name: this.$page.props.user ? this.$page.props.user.name : 'Anonymous Cucumber',
-					});
+				this._whisper('typing', {
+					isTyping,
+				});
 			},
 
 			resetTypingTimeout() {
@@ -275,9 +273,7 @@
 
 			handleMouseMove(e) {
 				const bounding = document.querySelector('#container').getBoundingClientRect();
-				channel.whisper('mousemove', {
-					name: this.$page.props.user.name,
-					color: this.$page.props.user.color,
+				this._whisper('mousemove', {
 					position: {
 						x: e.pageX,
 						y: e.pageY,
@@ -287,12 +283,17 @@
 			},
 
 			handleFocusChange(e, change) {
-				channel.whisper('active-element', {
-					name: this.$page.props.user.name,
-					color: this.$page.props.user.color,
+				this._whisper('active-element', {
 					element: change === 'FOCUS' ? generateQuerySelector(e.target) : null,
 				});
-			}
+			},
+
+			_whisper(name, data) {
+				channel.whisper(name, {
+					user: this.$page.props.user,
+					...data,
+				})
+			},
 		},
 
 		components: {

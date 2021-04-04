@@ -4,6 +4,23 @@
 
         <div class="min-h-screen bg-gray-100">
             <nav class="bg-white border-b border-gray-100">
+
+                <div v-if="$page.props.canLogin" class="hidden fixed top-0 right-0 px-6 py-4 sm:block">
+                    <inertia-link v-if="$page.props.user" href="/dashboard" class="text-sm text-gray-700 underline">
+                        Dashboard
+                    </inertia-link>
+
+                    <template v-else>
+                        <inertia-link :href="route('login')" class="text-sm text-gray-700 underline">
+                            Log in
+                        </inertia-link>
+
+                        <inertia-link v-if="$page.props.canRegister" :href="route('register')" class="ml-4 text-sm text-gray-700 underline">
+                            Register
+                        </inertia-link>
+                    </template>
+                </div>
+
                 <!-- Primary Navigation Menu -->
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="flex justify-between h-16">
@@ -23,7 +40,7 @@
                             </div>
                         </div>
 
-                        <div class="hidden sm:flex sm:items-center sm:ml-6">
+                        <div v-if="$page.props.user && !$page.props.user.guest" class="hidden sm:flex sm:items-center sm:ml-6">
                             <!-- Settings Dropdown -->
                             <div class="ml-3 relative">
                                 <jet-dropdown align="right" width="48">
