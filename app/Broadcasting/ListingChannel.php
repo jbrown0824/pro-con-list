@@ -35,7 +35,6 @@ class ListingChannel implements ShouldBroadcast
         return [
         	'listId' => $this->listId,
 			'user' => auth()->check() ? new UserResource(auth()->user()) : [ 'name' => 'Anonymous Cow'],
-			'list' => Cache::get('list.' . $listId) ?? [],
 		];
     }
 
