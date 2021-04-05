@@ -4,13 +4,12 @@ namespace App\Http\Middleware;
 
 use App\Traits\ManagesAnonymousUsers;
 use Closure;
-use Laravel\Jetstream\Http\Middleware\AuthenticateSession as BaseAuthenticateSession;
 
 /**
  * Class ListsAuthenticationSession
  * Assigns guest users to an "anonymous" user account so they can access this page & presence channels
  */
-class ListsAuthenticationSession extends BaseAuthenticateSession
+class AuthenticateAnonymousUsers extends Authenticate
 {
 	use ManagesAnonymousUsers;
 
@@ -21,20 +20,18 @@ class ListsAuthenticationSession extends BaseAuthenticateSession
 	 * @param  \Closure  $next
 	 * @return mixed
 	 */
-	public function handle($request, Closure $next, $autoAuth = false) {
+	public function handle($request, Closure $next, ...$guards) {
 		if (!$request->hasSession() || !$request->user()) {
 			// Guest User
 			$user = $this->getGuestUserFromCookie($request);
-			if (!$user && $autoAuth) {
+			if (!$user) {
 				$user = $this->makeAnonymousUser();
 			}
 
-			if ($user) {
-				auth()->setUser($user);
-				return $next($request)->cookie('guest_user', $user, null, null, null, null, true);
-			}
+			auth()->setUser($user);
+			return $next($request)->cookie('guest_user', $user, null, null, null, null, true);
 		}
 
-		return parent::handle($request, $next);
+		return parent::handle($request, $next, ...$guards);
 	}
 }

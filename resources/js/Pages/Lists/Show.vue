@@ -73,6 +73,7 @@
 	import { trackFocus } from '../../utils/track-focus';
 
 	let channel;
+	let mouseMoveHandler;
 
     function anonymousUser() {
     	const nouns = ['Platypus', 'Cucumber', 'Orangutan', 'Flower', 'River', 'Daisy'];
@@ -236,8 +237,8 @@
 			});
 
 			// Debounce
-			const mousemove = _.throttle((e) => this.handleMouseMove(e), 100);
-			window.addEventListener('mousemove', mousemove);
+			mouseMoveHandler = _.throttle((e) => this.handleMouseMove(e), 100);
+			window.addEventListener('mousemove', mouseMoveHandler);
 
 			// window.addEventListener('mousemove', (e) => this.handleMouseMove(e));
 
@@ -250,6 +251,10 @@
 
 		beforeUnmount() {
 			Echo.leave(`list.${this.listId}`);
+			console.log('removing event listeners');
+			window.removeEventListener('mousemove', mouseMoveHandler);
+			document.removeEventListener('focus', this.handleFocusChange);
+			document.removeEventListener('blur', this.handleFocusChange);
 		},
 
 		methods: {
@@ -288,9 +293,13 @@
 			},
 
 			handleFocusChange(e, change) {
-				this._whisper('active-element', {
-					element: change === 'FOCUS' ? generateQuerySelector(e.target) : null,
-				});
+				try {
+					this._whisper('active-element', {
+						element: change === 'FOCUS' ? generateQuerySelector(e.target) : null,
+					});
+				} catch (e) {
+					// Discard.. probably race condition while navigating away
+				}
 			},
 
 			_whisper(name, data) {

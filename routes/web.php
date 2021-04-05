@@ -35,11 +35,8 @@ Route::middleware(['auth'])->group(function() {
 	})->name('dashboard');
 });
 
-Route::middleware(['auth.lists:yes'])->group(function() {
+Route::middleware(['auth.anon'])->group(function() {
 	Route::get('/lists/{listId}', [ ListingController::class, 'show' ]);
-});
-
-Route::middleware(['auth.lists'])->group(function() {
 	Route::post('/lists/{listId}', [ ListingController::class, 'store' ]);
 
 	Route::post('/broadcasting/auth', [BroadcastController::class, 'authenticate'])
