@@ -2,7 +2,7 @@
 	<app-layout>
 		<template #header>
 			<h2 class="font-semibold text-xl text-gray-800 leading-tight">
-				List
+				Pro/Con List
 			</h2>
 		</template>
 
@@ -40,7 +40,10 @@
 				</table>
 
 				<div id="pointers">
-					<div v-for="state in pointers" :key="`user-pointer-${ state.id }`" class="pointer" :style="`left: ${state.mousePosition.x}px; top:${state.mousePosition.y}px; color:${state.user.color};`">{{ state.user.name }}</div>
+					<div v-for="state in pointers" :key="`user-pointer-${ state.id }`" class="pointer" :style="`left: ${state.mousePosition.x}px; top:${state.mousePosition.y}px; color:${state.user.color};`">
+						<img src="/images/pointer.png" class="cursor" />
+						<img class="avatar h-8 w-8 rounded-full object-cover" :src="($page.props.user || {}).profile_photo_url" :alt="($page.props.user || {}).name" />
+					</div>
 				</div>
 			</div>
 		</div>
@@ -54,10 +57,20 @@
 
 	#pointers .pointer {
 		position: fixed;
-		width: 15px;
-		height: 22px;
-		background: url("https://uploads.codesandbox.io/uploads/user/88acfe5a-77fc-498c-98ee-d1b0b303f6a8/tC4n-pointer.png")
-		no-repeat -4px 0;
+	}
+
+	.pointer img.cursor {
+		position: absolute;
+		width: 22px;
+		height:22px;
+		display:block;
+		top:0;
+		left: -4px;
+	}
+
+	.pointer img.avatar {
+		margin-left:10px;
+		margin-top:10px;
 	}
 
 	.focused {
