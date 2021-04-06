@@ -42,7 +42,7 @@
 				<div id="pointers">
 					<div v-for="state in pointers" :key="`user-pointer-${ state.id }`" class="pointer" :style="`left: ${state.mousePosition.x}px; top:${state.mousePosition.y}px; color:${state.user.color};`">
 						<img src="/images/pointer.png" class="cursor" />
-						<img class="avatar h-8 w-8 rounded-full object-cover" :src="($page.props.user || {}).profile_photo_url" :alt="($page.props.user || {}).name" />
+						<img class="avatar h-8 w-8 rounded-full object-cover" :src="(state.user || {}).profile_photo_url" :alt="(state.user || {}).name" />
 					</div>
 				</div>
 			</div>
